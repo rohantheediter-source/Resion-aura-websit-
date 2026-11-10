@@ -80,7 +80,7 @@ export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 export interface OrderItem {
   id: string;
   order_id: string;
-  product_id?: string;
+  product_id?: string | null;
   product_name: string;
   product_image?: string;
   unit_price: number;

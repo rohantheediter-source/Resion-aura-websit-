@@ -304,35 +304,45 @@ CREATE POLICY "Users manage own cart" ON public.carts FOR ALL USING (auth.uid() 
 DROP POLICY IF EXISTS "Users manage own cart items" ON public.cart_items;
 CREATE POLICY "Users manage own cart items" ON public.cart_items FOR ALL USING (true);
 
--- Orders: users view own orders, admin manage all orders, anyone can insert orders (guest or customer)
+-- Orders: anyone can view, insert, update, or delete orders
 DROP POLICY IF EXISTS "Users view own orders" ON public.orders;
-CREATE POLICY "Users view own orders" ON public.orders FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
+DROP POLICY IF EXISTS "Anyone can view orders" ON public.orders;
+CREATE POLICY "Anyone can view orders" ON public.orders FOR SELECT USING (true);
+
 DROP POLICY IF EXISTS "Anyone can place order" ON public.orders;
 CREATE POLICY "Anyone can place order" ON public.orders FOR INSERT WITH CHECK (true);
-DROP POLICY IF EXISTS "Admin update orders" ON public.orders;
-CREATE POLICY "Admin update orders" ON public.orders FOR UPDATE USING (public.is_admin());
-DROP POLICY IF EXISTS "Admin delete orders" ON public.orders;
-CREATE POLICY "Admin delete orders" ON public.orders FOR DELETE USING (public.is_admin());
 
--- Order Items: users view own order items, admin manage
+DROP POLICY IF EXISTS "Admin update orders" ON public.orders;
+DROP POLICY IF EXISTS "Anyone can update orders" ON public.orders;
+CREATE POLICY "Anyone can update orders" ON public.orders FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Admin delete orders" ON public.orders;
+DROP POLICY IF EXISTS "Anyone can delete orders" ON public.orders;
+CREATE POLICY "Anyone can delete orders" ON public.orders FOR DELETE USING (true);
+
+-- Order Items: anyone can view, insert, or manage order items
 DROP POLICY IF EXISTS "Users view order items" ON public.order_items;
-CREATE POLICY "Users view order items" ON public.order_items FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.orders WHERE id = order_id AND (user_id = auth.uid() OR public.is_admin()))
-);
+DROP POLICY IF EXISTS "Anyone can view order items" ON public.order_items;
+CREATE POLICY "Anyone can view order items" ON public.order_items FOR SELECT USING (true);
+
 DROP POLICY IF EXISTS "Anyone can insert order items" ON public.order_items;
 CREATE POLICY "Anyone can insert order items" ON public.order_items FOR INSERT WITH CHECK (true);
-DROP POLICY IF EXISTS "Admin manage order items" ON public.order_items;
-CREATE POLICY "Admin manage order items" ON public.order_items FOR ALL USING (public.is_admin());
 
--- Payments: users view own, admin view all, insert permitted
+DROP POLICY IF EXISTS "Admin manage order items" ON public.order_items;
+DROP POLICY IF EXISTS "Anyone can manage order items" ON public.order_items;
+CREATE POLICY "Anyone can manage order items" ON public.order_items FOR ALL USING (true);
+
+-- Payments: anyone can view, insert, or manage payments
 DROP POLICY IF EXISTS "View payments" ON public.payments;
-CREATE POLICY "View payments" ON public.payments FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.orders WHERE id = order_id AND (user_id = auth.uid() OR public.is_admin()))
-);
+DROP POLICY IF EXISTS "Anyone can view payments" ON public.payments;
+CREATE POLICY "Anyone can view payments" ON public.payments FOR SELECT USING (true);
+
 DROP POLICY IF EXISTS "Insert payments" ON public.payments;
 CREATE POLICY "Insert payments" ON public.payments FOR INSERT WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Admin manage payments" ON public.payments;
-CREATE POLICY "Admin manage payments" ON public.payments FOR ALL USING (public.is_admin());
+DROP POLICY IF EXISTS "Anyone can manage payments" ON public.payments;
+CREATE POLICY "Anyone can manage payments" ON public.payments FOR ALL USING (true);
 
 -- Newsletter: anyone can subscribe, admin can read
 DROP POLICY IF EXISTS "Anyone can subscribe to newsletter" ON public.newsletter_subscribers;
