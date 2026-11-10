@@ -1,0 +1,156 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Lock, Mail, User, ArrowRight, Sparkles } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+
+export const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { signUp } = useAuth();
+  const { error, success } = useToast();
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!fullName.trim() || !email.trim() || !password) {
+      error('Please fill in all required fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      error('Password must be at least 6 characters long');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      error('Passwords do not match');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error: signUpError } = await signUp(email.trim(), password, fullName.trim());
+      if (signUpError) {
+        error(signUpError.message || 'Registration failed');
+      } else {
+        success('Account created successfully! Welcome to Resin Aura.');
+        navigate('/profile');
+      }
+    } catch (err: any) {
+      error(err.message || 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#FAF8F5] min-h-[85vh] flex items-center justify-center py-16 px-4">
+      <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-neutral-200/80 shadow-luxury">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#0b3b33] text-[#dfbe7e] border border-[#c5a059] mb-4 shadow-sm">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <h1 className="font-display text-2xl font-bold text-[#07241e]">
+            Join The Atelier Circle
+          </h1>
+          <p className="font-serif-luxury text-sm text-neutral-500 mt-1">
+            Create your collector profile to track bespoke orders and curate your wishlist.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
+              Full Name *
+            </label>
+            <div className="relative">
+              <User className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                placeholder="Collector or Gifting Name"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
+              Email Address *
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="patron@example.com"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
+              Password (Min 6 Characters) *
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
+              Confirm Password *
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3" />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-[#0b3b33] hover:bg-[#07241e] text-[#f7f4ee] font-display text-xs font-bold uppercase tracking-[0.16em] transition-all shadow-md hover:shadow-lg border border-[#c5a059]/40 disabled:opacity-50"
+          >
+            <span>{isSubmitting ? 'Creating Profile...' : 'Complete Registration'}</span>
+            <ArrowRight className="w-4 h-4 text-[#dfbe7e]" />
+          </button>
+        </form>
+
+        <div className="mt-8 pt-6 border-t border-neutral-100 text-center text-xs text-neutral-500">
+          <span>Already registered with Resin Aura? </span>
+          <Link to="/login" className="font-bold text-[#0b3b33] hover:underline">
+            Sign In Here
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
