@@ -98,8 +98,17 @@ export const ProfilePage: React.FC = () => {
         {/* Profile Header */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-neutral-200/80 shadow-sm mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-[#0b3b33] text-[#dfbe7e] border border-[#c5a059] flex items-center justify-center font-display text-2xl font-bold shadow-sm">
-              {(profile?.full_name || user.email || 'RA')[0].toUpperCase()}
+            <div className="w-16 h-16 rounded-2xl bg-[#0b3b33] text-[#dfbe7e] border border-[#c5a059] flex items-center justify-center font-display text-2xl font-bold shadow-sm overflow-hidden shrink-0">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || 'Collector Avatar'}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                (profile?.full_name || user.email || 'RA')[0].toUpperCase()
+              )}
             </div>
             <div>
               <span className="text-[10px] uppercase tracking-widest text-[#856338] font-bold">

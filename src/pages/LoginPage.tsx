@@ -1,17 +1,38 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { GoogleSignInButton, AuthDivider } from '../components/auth/GoogleSignInButton';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { signIn, user, isLoading } = useAuth();
   const { error, success } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && user) {
+      const returnUrl = (location.state as any)?.from?.pathname || '/profile';
+      navigate(returnUrl, { replace: true });
+    }
+  }, [user, isLoading, navigate, location]);
+
+  // Capture OAuth errors passed via URL params
+  useEffect(() => {
+    const errorParam =
+      searchParams.get('error_description') ||
+      searchParams.get('error');
+    if (errorParam) {
+      error(decodeURIComponent(errorParam.replace(/\+/g, ' ')));
+    }
+  }, [searchParams, error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +48,8 @@ export const LoginPage: React.FC = () => {
         error(signInError.message || 'Invalid email or password');
       } else {
         success('Welcome back to Resin Aura');
-        navigate('/profile');
+        const returnUrl = (location.state as any)?.from?.pathname || '/profile';
+        navigate(returnUrl);
       }
     } catch (err: any) {
       error(err.message || 'An unexpected error occurred during sign in');
@@ -40,7 +62,7 @@ export const LoginPage: React.FC = () => {
     <div className="bg-[#FAF8F5] min-h-[80vh] flex items-center justify-center py-16 px-4">
       <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-neutral-200/80 shadow-luxury">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#0b3b33] text-[#dfbe7e] border border-[#c5a059] mb-4 shadow-sm">
             <Sparkles className="w-6 h-6" />
           </div>
@@ -52,6 +74,18 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
+        {/* 1. Google OAuth Authentication Button */}
+        <div className="mb-1">
+          <GoogleSignInButton
+            text="Continue with Google"
+            redirectTo="/auth/callback"
+          />
+        </div>
+
+        {/* 2. Visual Luxury Divider */}
+        <AuthDivider label="OR CONTINUE WITH EMAIL" />
+
+        {/* 3. Existing Email & Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
@@ -115,4 +149,5 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+
 

@@ -12,6 +12,7 @@ interface AuthContextValue {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: (redirectTo?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
@@ -51,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LOCAL_ADMIN_KEY, 'true');
   }, []);
 
-  const fetchProfileAndRole = useCallback(async (userId: string, email: string) => {
+  const fetchProfileAndRole = useCallback(async (userId: string, email: string, userObj?: User | null) => {
     try {
       // 1. Fetch user role
       const { data: roleData, error: roleError } = await supabase
@@ -61,15 +62,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       const adminEmails = ['admin@resinaura.com', 'admin@gmail.com', 'rohan@resinaura.com'];
+      let userRole: UserRole = 'customer';
       if (!roleError && roleData?.role) {
-        setRole(roleData.role as UserRole);
+        userRole = roleData.role as UserRole;
       } else if (adminEmails.includes(email.toLowerCase())) {
-        setRole('admin');
+        userRole = 'admin';
       } else {
-        setRole('customer');
+        userRole = 'customer';
+      }
+      setRole(userRole);
+
+      // Ensure user_roles has a record (safely avoiding duplication)
+      if (!roleData?.role) {
+        try {
+          await supabase
+            .from('user_roles')
+            .upsert({ user_id: userId, role: userRole }, { onConflict: 'user_id' });
+        } catch (_) {}
       }
 
-      // 2. Fetch profile
+      // 2. Extract Google OAuth metadata if available
+      const userMeta = (userObj?.user_metadata || {}) as Record<string, any>;
+      const googleName = userMeta.full_name || userMeta.name || '';
+      const googleAvatar = userMeta.avatar_url || userMeta.picture || '';
+
+      // 3. Fetch profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -77,20 +94,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (profileData) {
+        // Enrich profile with Google metadata if local values are blank
+        const updatesToSync: Record<string, any> = {};
+        if (!profileData.full_name && googleName) updatesToSync.full_name = googleName;
+        if (!profileData.avatar_url && googleAvatar) updatesToSync.avatar_url = googleAvatar;
+
+        if (Object.keys(updatesToSync).length > 0) {
+          try {
+            await supabase
+              .from('profiles')
+              .update(updatesToSync)
+              .eq('id', userId);
+          } catch (_) {}
+        }
+
         setProfile({
           id: userId,
           email,
-          full_name: profileData.full_name || '',
+          full_name: profileData.full_name || googleName || '',
           phone: profileData.phone || '',
-          avatar_url: profileData.avatar_url || '',
-          role: (roleData?.role as UserRole) || (adminEmails.includes(email.toLowerCase()) ? 'admin' : 'customer'),
+          avatar_url: profileData.avatar_url || googleAvatar || '',
+          role: userRole,
+          created_at: profileData.created_at,
         });
       } else {
+        // Create new profile for Google / first-time user
+        const initialName = googleName || email.split('@')[0];
+        try {
+          await supabase.from('profiles').upsert({
+            id: userId,
+            email,
+            full_name: initialName,
+            avatar_url: googleAvatar,
+          }, { onConflict: 'id' });
+        } catch (_) {}
+
+        // Initialize customer wishlist
+        try {
+          await supabase.from('wishlists').upsert({
+            user_id: userId,
+          }, { onConflict: 'user_id' });
+        } catch (_) {}
+
         setProfile({
           id: userId,
           email,
-          full_name: email.split('@')[0],
-          role: (roleData?.role as UserRole) || (adminEmails.includes(email.toLowerCase()) ? 'admin' : 'customer'),
+          full_name: initialName,
+          avatar_url: googleAvatar,
+          role: userRole,
         });
       }
     } catch (err) {
@@ -120,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (initialSession?.user) {
             setSession(initialSession);
             setUser(initialSession.user);
-            await fetchProfileAndRole(initialSession.user.id, initialSession.user.email ?? '');
+            await fetchProfileAndRole(initialSession.user.id, initialSession.user.email ?? '', initialSession.user);
           } else if (wasDevAdmin) {
             setDevAdminState();
           }
@@ -142,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (newSession?.user) {
         setSession(newSession);
         setUser(newSession.user);
-        await fetchProfileAndRole(newSession.user.id, newSession.user.email ?? '');
+        await fetchProfileAndRole(newSession.user.id, newSession.user.email ?? '', newSession.user);
       } else if (localStorage.getItem(LOCAL_ADMIN_KEY) === 'true') {
         setDevAdminState();
       } else {
@@ -272,6 +323,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithGoogle = async (customRedirectTo?: string): Promise<{ error: Error | null }> => {
+    try {
+      const origin = window.location.origin;
+      // Use auth callback route for seamless session detection and profile sync
+      let targetRedirect = `${origin}/auth/callback`;
+      if (customRedirectTo) {
+        targetRedirect = customRedirectTo.startsWith('http')
+          ? customRedirectTo
+          : `${origin}${customRedirectTo.startsWith('/') ? '' : '/'}${customRedirectTo}`;
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: targetRedirect,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      });
+
+      if (error) {
+        return { error };
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
+    }
+  };
+
   const loginAsDevAdmin = () => {
     setDevAdminState();
   };
@@ -287,6 +369,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         resetPassword,
         updateProfile,

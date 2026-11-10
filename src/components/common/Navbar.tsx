@@ -163,11 +163,20 @@ export const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-1.5 p-2 text-neutral-700 hover:text-[#0b3b33] hover:bg-neutral-50 rounded-full transition-colors"
+                className="flex items-center gap-1.5 p-1.5 text-neutral-700 hover:text-[#0b3b33] hover:bg-neutral-50 rounded-full transition-colors"
                 title="Account"
                 aria-label="Account"
               >
-                <UserIcon className="w-5 h-5" />
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="User"
+                    className="w-5 h-5 rounded-full object-cover border border-[#c5a059]"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <UserIcon className="w-5 h-5" />
+                )}
                 <ChevronDown className="w-3 h-3 text-neutral-400" />
               </button>
 
