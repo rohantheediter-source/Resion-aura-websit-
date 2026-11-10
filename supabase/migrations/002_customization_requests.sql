@@ -3,6 +3,15 @@
 -- Migration: 002_customization_requests.sql
 -- ==============================================================================
 
+-- Helper function for timestamp updates
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- 1. Create customization_requests table
 CREATE TABLE IF NOT EXISTS public.customization_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
