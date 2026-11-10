@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { WHATSAPP_DISPLAY_NUMBER, WHATSAPP_BUSINESS_NUMBER } from '../utils/constants';
+
 
 export const ContactPage: React.FC = () => {
   const { success, error } = useToast();
@@ -69,10 +71,11 @@ export const ContactPage: React.FC = () => {
                 <Phone className="w-4 h-4 text-[#856338] shrink-0" />
                 <div>
                   <span className="text-neutral-400 block text-[10px] uppercase">Telephone & WhatsApp</span>
-                  <a href="tel:+918337983439" className="font-bold text-neutral-900 hover:text-[#0b3b33]">
-                    +91 83379 83439
+                  <a href={`https://wa.me/${WHATSAPP_BUSINESS_NUMBER}`} target="_blank" rel="noopener noreferrer" className="font-bold text-neutral-900 hover:text-[#0b3b33]">
+                    {WHATSAPP_DISPLAY_NUMBER}
                   </a>
                 </div>
+
               </div>
 
               <div className="flex items-center gap-3 text-neutral-700">

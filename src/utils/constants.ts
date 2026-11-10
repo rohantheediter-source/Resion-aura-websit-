@@ -10,14 +10,15 @@ export const FREE_SHIPPING_THRESHOLD = Number(env.VITE_FREE_SHIPPING_THRESHOLD) 
 export const STANDARD_SHIPPING_FEE = Number(env.VITE_STANDARD_SHIPPING_FEE) || 149;
 
 // WhatsApp Business Number Configuration
-// Clean digits without '+' or spaces for wa.me API: 918337983439
+// Clean digits without '+' or spaces for wa.me API: 917223008721
 export const WHATSAPP_BUSINESS_NUMBER =
   (env.VITE_WHATSAPP_NUMBER as string | undefined)?.replace(/[^0-9]/g, '') ||
-  '918337983439';
+  '917223008721';
 
 // Formatted display representation
 export const WHATSAPP_DISPLAY_NUMBER =
-  (env.VITE_WHATSAPP_DISPLAY as string | undefined) || '+91 83379 83439';
+  (env.VITE_WHATSAPP_DISPLAY as string | undefined) || '+91 7223008721';
+
 
 
 /**

@@ -248,60 +248,87 @@ ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 
 -- Categories: public read, admin write
+DROP POLICY IF EXISTS "Public read categories" ON public.categories;
 CREATE POLICY "Public read categories" ON public.categories FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin manage categories" ON public.categories;
 CREATE POLICY "Admin manage categories" ON public.categories FOR ALL USING (public.is_admin());
 
 -- Products: public read active, admin manage all
+DROP POLICY IF EXISTS "Public read active products" ON public.products;
 CREATE POLICY "Public read active products" ON public.products FOR SELECT USING (is_active = true OR public.is_admin());
+DROP POLICY IF EXISTS "Admin manage products" ON public.products;
 CREATE POLICY "Admin manage products" ON public.products FOR ALL USING (public.is_admin());
 
 -- Product Images: public read, admin manage
+DROP POLICY IF EXISTS "Public read product images" ON public.product_images;
 CREATE POLICY "Public read product images" ON public.product_images FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin manage product images" ON public.product_images;
 CREATE POLICY "Admin manage product images" ON public.product_images FOR ALL USING (public.is_admin());
 
 -- Profiles: user read/write own, admin read all
+DROP POLICY IF EXISTS "Users view own profile" ON public.profiles;
 CREATE POLICY "Users view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id OR public.is_admin());
+DROP POLICY IF EXISTS "Users update own profile" ON public.profiles;
 CREATE POLICY "Users update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- User Roles: user view own role, admin manage roles
+DROP POLICY IF EXISTS "Users view own role" ON public.user_roles;
 CREATE POLICY "Users view own role" ON public.user_roles FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
+DROP POLICY IF EXISTS "Admin manage roles" ON public.user_roles;
 CREATE POLICY "Admin manage roles" ON public.user_roles FOR ALL USING (public.is_admin());
 
 -- Addresses: user manage own
+DROP POLICY IF EXISTS "Users manage own addresses" ON public.addresses;
 CREATE POLICY "Users manage own addresses" ON public.addresses FOR ALL USING (auth.uid() = user_id);
 
 -- Wishlists & Wishlist items: user manage own
+DROP POLICY IF EXISTS "Users manage own wishlist" ON public.wishlists;
 CREATE POLICY "Users manage own wishlist" ON public.wishlists FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users manage own wishlist items" ON public.wishlist_items;
 CREATE POLICY "Users manage own wishlist items" ON public.wishlist_items FOR ALL USING (
   EXISTS (SELECT 1 FROM public.wishlists WHERE id = wishlist_id AND user_id = auth.uid())
 );
 
 -- Carts & Cart items: user manage own
+DROP POLICY IF EXISTS "Users manage own cart" ON public.carts;
 CREATE POLICY "Users manage own cart" ON public.carts FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
+DROP POLICY IF EXISTS "Users manage own cart items" ON public.cart_items;
 CREATE POLICY "Users manage own cart items" ON public.cart_items FOR ALL USING (true);
 
 -- Orders: users view own orders, admin manage all orders, anyone can insert orders (guest or customer)
+DROP POLICY IF EXISTS "Users view own orders" ON public.orders;
 CREATE POLICY "Users view own orders" ON public.orders FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
+DROP POLICY IF EXISTS "Anyone can place order" ON public.orders;
 CREATE POLICY "Anyone can place order" ON public.orders FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Admin update orders" ON public.orders;
 CREATE POLICY "Admin update orders" ON public.orders FOR UPDATE USING (public.is_admin());
+DROP POLICY IF EXISTS "Admin delete orders" ON public.orders;
 CREATE POLICY "Admin delete orders" ON public.orders FOR DELETE USING (public.is_admin());
 
 -- Order Items: users view own order items, admin manage
+DROP POLICY IF EXISTS "Users view order items" ON public.order_items;
 CREATE POLICY "Users view order items" ON public.order_items FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.orders WHERE id = order_id AND (user_id = auth.uid() OR public.is_admin()))
 );
+DROP POLICY IF EXISTS "Anyone can insert order items" ON public.order_items;
 CREATE POLICY "Anyone can insert order items" ON public.order_items FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Admin manage order items" ON public.order_items;
 CREATE POLICY "Admin manage order items" ON public.order_items FOR ALL USING (public.is_admin());
 
 -- Payments: users view own, admin view all, insert permitted
+DROP POLICY IF EXISTS "View payments" ON public.payments;
 CREATE POLICY "View payments" ON public.payments FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.orders WHERE id = order_id AND (user_id = auth.uid() OR public.is_admin()))
 );
+DROP POLICY IF EXISTS "Insert payments" ON public.payments;
 CREATE POLICY "Insert payments" ON public.payments FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Admin manage payments" ON public.payments;
 CREATE POLICY "Admin manage payments" ON public.payments FOR ALL USING (public.is_admin());
 
 -- Newsletter: anyone can subscribe, admin can read
+DROP POLICY IF EXISTS "Anyone can subscribe to newsletter" ON public.newsletter_subscribers;
 CREATE POLICY "Anyone can subscribe to newsletter" ON public.newsletter_subscribers FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Admin view newsletter subscribers" ON public.newsletter_subscribers;
 CREATE POLICY "Admin view newsletter subscribers" ON public.newsletter_subscribers FOR SELECT USING (public.is_admin());
 
 -- ==============================================================================

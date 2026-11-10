@@ -27,3 +27,5 @@ dist-ssr
 
 # Temporary / Agent system files
 .system_generated/
+supabase/.temp/
+

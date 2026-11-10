@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { HeroBanner } from '../components/home/HeroBanner';
 import { FeaturedCollections } from '../components/home/FeaturedCollections';
 import { BestsellerGrid } from '../components/home/BestsellerGrid';
+import { BespokeCommissionBanner } from '../components/home/BespokeCommissionBanner';
 import { ArtisanStorySection } from '../components/home/ArtisanStorySection';
 import { CraftsmanshipProcess } from '../components/home/CraftsmanshipProcess';
 import { TestimonialsSection } from '../components/home/TestimonialsSection';
@@ -28,10 +29,12 @@ export const HomePage: React.FC = () => {
       <HeroBanner />
       <FeaturedCollections />
       <BestsellerGrid products={products} />
+      <BespokeCommissionBanner />
       <ArtisanStorySection />
       <CraftsmanshipProcess />
       <TestimonialsSection />
     </div>
   );
 };
+
 
