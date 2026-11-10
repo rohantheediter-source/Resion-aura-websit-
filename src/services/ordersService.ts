@@ -41,10 +41,21 @@ export const ordersService = {
     paymentMethod: 'cod' | 'upi' | 'card' | 'bank_transfer';
     notes?: string;
   }): Promise<Order> {
+    // 1. Mandatory Authentication Verification: Must have an active Supabase authenticated session
+    const { data: { session } } = await supabase.auth.getSession();
+    const sessionUserId = session?.user?.id;
+    const verifiedUserId = isValidUUID(sessionUserId)
+      ? sessionUserId
+      : (isValidUUID(params.userId) ? params.userId : null);
+
+    if (!verifiedUserId) {
+      throw new Error('Authentication required. Please sign in to place your order.');
+    }
+
     const orderNumber = generateOrderNumber();
     const orderId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const safeUserId = isValidUUID(params.userId) ? params.userId : null;
+    const safeUserId = verifiedUserId;
 
     const orderRecord: Order = {
       id: orderId,
@@ -76,48 +87,83 @@ export const ordersService = {
       })),
     };
 
-    // Attempt to persist to Supabase
+    // Attempt to persist to Supabase via secure atomic place_order RPC
+    let remoteOrderPlaced = false;
     try {
-      const { error: orderError } = await supabase.from('orders').insert({
-        id: orderRecord.id,
-        order_number: orderRecord.order_number,
-        user_id: safeUserId,
-        guest_email: orderRecord.guest_email,
-        guest_name: orderRecord.guest_name,
-        guest_phone: orderRecord.guest_phone,
-        shipping_address: orderRecord.shipping_address,
-        status: orderRecord.status,
-        subtotal: orderRecord.subtotal,
-        shipping_fee: orderRecord.shipping_fee,
-        discount_amount: orderRecord.discount_amount,
-        total_amount: orderRecord.total_amount,
-        payment_method: orderRecord.payment_method,
-        payment_status: orderRecord.payment_status,
-        notes: orderRecord.notes,
-        created_at: now,
+      const rpcItems = params.cart.map((c) => ({
+        product_id: c.productId,
+        quantity: c.quantity,
+        variant_details: c.selectedVariant ? { variant: c.selectedVariant } : null,
+      }));
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc('place_order', {
+        p_order_number: orderRecord.order_number,
+        p_guest_name: orderRecord.guest_name,
+        p_guest_email: orderRecord.guest_email,
+        p_guest_phone: orderRecord.guest_phone,
+        p_shipping_address: orderRecord.shipping_address,
+        p_payment_method: orderRecord.payment_method,
+        p_notes: orderRecord.notes || '',
+        p_items: rpcItems,
       });
 
-      if (orderError) {
-        console.warn('Supabase order insert warning:', orderError);
-      } else if (orderRecord.items && orderRecord.items.length > 0) {
-        const itemInserts = orderRecord.items.map((it) => ({
-          id: isValidUUID(it.id) ? it.id : crypto.randomUUID(),
-          order_id: it.order_id,
-          product_id: isValidUUID(it.product_id) ? it.product_id : null,
-          product_name: it.product_name,
-          product_image: it.product_image,
-          unit_price: it.unit_price,
-          quantity: it.quantity,
-          total_price: it.total_price,
-          variant_details: it.variant_details || null,
-        }));
-        const { error: itemError } = await supabase.from('order_items').insert(itemInserts);
-        if (itemError) {
-          console.warn('Supabase order_items insert warning:', itemError);
-        }
+      if (!rpcError && rpcData) {
+        remoteOrderPlaced = true;
+        if (rpcData.id) orderRecord.id = rpcData.id;
+        if (rpcData.total_amount !== undefined) orderRecord.total_amount = Number(rpcData.total_amount);
+        if (rpcData.subtotal !== undefined) orderRecord.subtotal = Number(rpcData.subtotal);
+        if (rpcData.shipping_fee !== undefined) orderRecord.shipping_fee = Number(rpcData.shipping_fee);
+      } else if (rpcError) {
+        console.warn('Supabase place_order RPC returned error, attempting direct insert fallback:', rpcError);
       }
-    } catch (e) {
-      console.warn('Could not save to Supabase orders table, using local storage:', e);
+    } catch (rpcEx) {
+      console.warn('Supabase place_order RPC exception, attempting direct insert fallback:', rpcEx);
+    }
+
+    // Direct insert fallback if RPC is not present
+    if (!remoteOrderPlaced) {
+      try {
+        const { error: orderError } = await supabase.from('orders').insert({
+          id: orderRecord.id,
+          order_number: orderRecord.order_number,
+          user_id: safeUserId,
+          guest_email: orderRecord.guest_email,
+          guest_name: orderRecord.guest_name,
+          guest_phone: orderRecord.guest_phone,
+          shipping_address: orderRecord.shipping_address,
+          status: orderRecord.status,
+          subtotal: orderRecord.subtotal,
+          shipping_fee: orderRecord.shipping_fee,
+          discount_amount: orderRecord.discount_amount,
+          total_amount: orderRecord.total_amount,
+          payment_method: orderRecord.payment_method,
+          payment_status: orderRecord.payment_status,
+          notes: orderRecord.notes,
+          created_at: now,
+        });
+
+        if (orderError) {
+          console.warn('Supabase order direct insert warning:', orderError);
+        } else if (orderRecord.items && orderRecord.items.length > 0) {
+          const itemInserts = orderRecord.items.map((it) => ({
+            id: isValidUUID(it.id) ? it.id : crypto.randomUUID(),
+            order_id: it.order_id,
+            product_id: isValidUUID(it.product_id) ? it.product_id : null,
+            product_name: it.product_name,
+            product_image: it.product_image,
+            unit_price: it.unit_price,
+            quantity: it.quantity,
+            total_price: it.total_price,
+            variant_details: it.variant_details || null,
+          }));
+          const { error: itemError } = await supabase.from('order_items').insert(itemInserts);
+          if (itemError) {
+            console.warn('Supabase order_items insert warning:', itemError);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not save to Supabase orders table, using local storage:', e);
+      }
     }
 
     // Always record locally
@@ -304,6 +350,19 @@ export const ordersService = {
   async trackOrder(orderNumber: string, identifier?: string): Promise<Order | null> {
     const cleanNumber = orderNumber.trim().toUpperCase();
 
+    // 1. Try secure RPC function (works for guests with verification & authenticated owners)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('track_order_secure', {
+        p_order_number: cleanNumber,
+        p_verification: identifier || null,
+      });
+
+      if (!rpcError && rpcData) {
+        return rpcData as Order;
+      }
+    } catch (_) {}
+
+    // 2. Direct table query (works for authenticated owners and authorized admins via RLS)
     try {
       const { data, error } = await supabase
         .from('orders')

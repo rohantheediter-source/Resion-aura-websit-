@@ -18,13 +18,33 @@ export const RegisterPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Determine intended destination
+  const getReturnUrl = (): string => {
+    return (
+      searchParams.get('redirect') ||
+      (location.state as any)?.from?.pathname ||
+      (location.state as any)?.from ||
+      sessionStorage.getItem('resin_aura_auth_redirect') ||
+      '/profile'
+    );
+  };
+
+  // Keep sessionStorage in sync so OAuth redirect preserves destination
+  useEffect(() => {
+    const redirectParam = searchParams.get('redirect') || (location.state as any)?.from?.pathname || (location.state as any)?.from;
+    if (redirectParam) {
+      sessionStorage.setItem('resin_aura_auth_redirect', redirectParam);
+    }
+  }, [searchParams, location]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
-      const returnUrl = (location.state as any)?.from?.pathname || '/profile';
+      const returnUrl = getReturnUrl();
+      sessionStorage.removeItem('resin_aura_auth_redirect');
       navigate(returnUrl, { replace: true });
     }
-  }, [user, isLoading, navigate, location]);
+  }, [user, isLoading, navigate, location, searchParams]);
 
   // Capture OAuth errors passed via URL params
   useEffect(() => {
@@ -61,7 +81,8 @@ export const RegisterPage: React.FC = () => {
         error(signUpError.message || 'Registration failed');
       } else {
         success('Account created successfully! Welcome to Resin Aura.');
-        const returnUrl = (location.state as any)?.from?.pathname || '/profile';
+        const returnUrl = getReturnUrl();
+        sessionStorage.removeItem('resin_aura_auth_redirect');
         navigate(returnUrl);
       }
     } catch (err: any) {
@@ -179,7 +200,11 @@ export const RegisterPage: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-neutral-100 text-center text-xs text-neutral-500">
           <span>Already registered with Resin Aura? </span>
-          <Link to="/login" className="font-bold text-[#0b3b33] hover:underline">
+          <Link
+            to={searchParams.get('redirect') ? `/login?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/login'}
+            state={location.state}
+            className="font-bold text-[#0b3b33] hover:underline"
+          >
             Sign In Here
           </Link>
         </div>

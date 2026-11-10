@@ -16,13 +16,33 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Determine intended destination
+  const getReturnUrl = (): string => {
+    return (
+      searchParams.get('redirect') ||
+      (location.state as any)?.from?.pathname ||
+      (location.state as any)?.from ||
+      sessionStorage.getItem('resin_aura_auth_redirect') ||
+      '/profile'
+    );
+  };
+
+  // Keep sessionStorage in sync so OAuth redirect preserves destination
+  useEffect(() => {
+    const redirectParam = searchParams.get('redirect') || (location.state as any)?.from?.pathname || (location.state as any)?.from;
+    if (redirectParam) {
+      sessionStorage.setItem('resin_aura_auth_redirect', redirectParam);
+    }
+  }, [searchParams, location]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
-      const returnUrl = (location.state as any)?.from?.pathname || '/profile';
+      const returnUrl = getReturnUrl();
+      sessionStorage.removeItem('resin_aura_auth_redirect');
       navigate(returnUrl, { replace: true });
     }
-  }, [user, isLoading, navigate, location]);
+  }, [user, isLoading, navigate, location, searchParams]);
 
   // Capture OAuth errors passed via URL params
   useEffect(() => {
@@ -48,7 +68,8 @@ export const LoginPage: React.FC = () => {
         error(signInError.message || 'Invalid email or password');
       } else {
         success('Welcome back to Resin Aura');
-        const returnUrl = (location.state as any)?.from?.pathname || '/profile';
+        const returnUrl = getReturnUrl();
+        sessionStorage.removeItem('resin_aura_auth_redirect');
         navigate(returnUrl);
       }
     } catch (err: any) {
@@ -57,6 +78,8 @@ export const LoginPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  const isCheckoutRedirect = searchParams.get('redirect') === '/checkout' || (location.state as any)?.from?.pathname === '/checkout';
 
   return (
     <div className="bg-[#FAF8F5] min-h-[80vh] flex items-center justify-center py-16 px-4">
@@ -73,6 +96,14 @@ export const LoginPage: React.FC = () => {
             Access your saved curations, commission history, and priority dispatch updates.
           </p>
         </div>
+
+        {/* Notice if redirected from checkout */}
+        {isCheckoutRedirect && (
+          <div className="mb-6 p-3.5 rounded-2xl bg-[#0b3b33]/5 border border-[#0b3b33]/20 flex items-center gap-3 text-xs text-[#07241e]">
+            <Sparkles className="w-4 h-4 text-[#856338] shrink-0" />
+            <span>Please sign in to proceed with checkout. Your bag items have been safely preserved.</span>
+          </div>
+        )}
 
         {/* 1. Google OAuth Authentication Button */}
         <div className="mb-1">
@@ -141,7 +172,11 @@ export const LoginPage: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-neutral-100 text-center text-xs text-neutral-500">
           <span>New to Resin Aura? </span>
-          <Link to="/register" className="font-bold text-[#0b3b33] hover:underline">
+          <Link
+            to={searchParams.get('redirect') ? `/register?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/register'}
+            state={location.state}
+            className="font-bold text-[#0b3b33] hover:underline"
+          >
             Create an Account
           </Link>
         </div>

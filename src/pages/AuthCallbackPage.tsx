@@ -48,7 +48,9 @@ export const AuthCallbackPage: React.FC = () => {
           await refreshProfile();
           if (isMounted) {
             success('Signed in with Google successfully! Welcome to Resin Aura.');
-            navigate('/profile', { replace: true });
+            const targetRedirect = sessionStorage.getItem('resin_aura_auth_redirect') || '/profile';
+            sessionStorage.removeItem('resin_aura_auth_redirect');
+            navigate(targetRedirect, { replace: true });
           }
           return;
         }
@@ -56,7 +58,9 @@ export const AuthCallbackPage: React.FC = () => {
         // Wait up to 3 seconds for onAuthStateChange to capture the session
         const timeout = setTimeout(() => {
           if (isMounted && !user) {
-            navigate('/profile', { replace: true });
+            const targetRedirect = sessionStorage.getItem('resin_aura_auth_redirect') || '/profile';
+            sessionStorage.removeItem('resin_aura_auth_redirect');
+            navigate(targetRedirect, { replace: true });
           }
         }, 3000);
 

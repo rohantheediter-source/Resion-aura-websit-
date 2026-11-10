@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ShieldCheck,
   Truck,
@@ -17,12 +17,27 @@ import { useToast } from '../contexts/ToastContext';
 import { ordersService } from '../services/ordersService';
 import { formatCurrency } from '../utils/formatters';
 import { ShippingAddress, PaymentMethod } from '../types';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cart, subtotal, shippingFee, finalTotal, clearCart } = useCart();
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading } = useAuth();
   const { error } = useToast();
+
+  // 1. Mandatory customer authentication check
+  useEffect(() => {
+    if (!isLoading && !user) {
+      // Store redirect target in sessionStorage for OAuth resilience
+      sessionStorage.setItem('resin_aura_auth_redirect', '/checkout');
+      // Redirect to /login with state and query param
+      navigate('/login?redirect=/checkout', {
+        replace: true,
+        state: { from: location },
+      });
+    }
+  }, [user, isLoading, navigate, location]);
 
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -38,6 +53,37 @@ export const CheckoutPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Sync user profile fields when loaded
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+    if (profile?.full_name && !fullName) {
+      setFullName(profile.full_name);
+    }
+    if (profile?.phone && !phone) {
+      setPhone(profile.phone);
+    }
+  }, [user, profile]);
+
+  // Loading state handling to avoid flash
+  if (isLoading) {
+    return (
+      <div className="bg-[#FAF8F5] min-h-screen flex items-center justify-center py-20">
+        <LoadingSpinner label="Verifying Customer Clearance..." />
+      </div>
+    );
+  }
+
+  // If unauthenticated, render spinner while redirecting
+  if (!user) {
+    return (
+      <div className="bg-[#FAF8F5] min-h-screen flex items-center justify-center py-20">
+        <LoadingSpinner label="Directing to Sign In..." />
+      </div>
+    );
+  }
+
   if (cart.length === 0) {
     navigate('/cart');
     return null;
@@ -45,6 +91,12 @@ export const CheckoutPage: React.FC = () => {
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      error('Please sign in to complete your order.');
+      navigate('/login?redirect=/checkout', { state: { from: location } });
+      return;
+    }
 
     if (!fullName.trim() || !phone.trim() || !streetAddress.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
       error('Please complete all required delivery details');
