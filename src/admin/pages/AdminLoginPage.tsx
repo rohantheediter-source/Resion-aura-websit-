@@ -151,7 +151,7 @@ export const AdminLoginPage: React.FC = () => {
           </div>
 
           {/* METHOD 2: Existing Admin Email/Password Form */}
-          <form onSubmit={handleEmailPasswordLogin} className="space-y-4">
+          <form onSubmit={handleEmailPasswordLogin} className="space-y-4" autoComplete="off">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-1.5 font-mono text-[11px]">
                 Administrator Email
@@ -163,7 +163,7 @@ export const AdminLoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  autoComplete="username"
+                  autoComplete="off"
                   placeholder="admin@yourdomain.com"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#061713] border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#c5a059] transition-colors"
                 />
@@ -181,7 +181,7 @@ export const AdminLoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   placeholder="••••••••••••"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#061713] border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#c5a059] transition-colors"
                 />
