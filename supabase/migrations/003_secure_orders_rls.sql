@@ -795,8 +795,5 @@ GRANT EXECUTE ON FUNCTION public.track_order_secure(TEXT, TEXT) TO anon, authent
 -- ------------------------------------------------------------------------------
 -- 12. BOOTSTRAP INITIAL AUTHORIZED ADMINISTRATOR
 -- ------------------------------------------------------------------------------
-INSERT INTO public.authorized_admins (user_id, role, notes)
-SELECT id, 'admin', 'Resin Aura Store Administrator'
-FROM auth.users
-WHERE LOWER(email) IN ('admin@resinaura.com', 'rohan@resinaura.com')
-ON CONFLICT (user_id) DO UPDATE SET role = 'admin', updated_at = timezone('utc'::text, now());
+-- Whitelist administrator accounts explicitly by running:
+-- SELECT public.assign_admin_by_email('your_email@example.com', 'admin', 'Store Administrator');

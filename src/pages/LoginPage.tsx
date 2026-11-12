@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Sparkles, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { GoogleSignInButton, AuthDivider } from '../components/auth/GoogleSignInButton';
@@ -178,6 +178,16 @@ export const LoginPage: React.FC = () => {
             className="font-bold text-[#0b3b33] hover:underline"
           >
             Create an Account
+          </Link>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-dashed border-neutral-200 text-center">
+          <Link
+            to="/admin/login"
+            className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-[#0b3b33] font-medium transition-colors"
+          >
+            <Shield className="w-3.5 h-3.5 text-[#c5a059]" />
+            <span>Store Administrator? Sign In to Admin Portal</span>
           </Link>
         </div>
       </div>

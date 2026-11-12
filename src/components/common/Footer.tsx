@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Mail, Phone, MapPin, Send, CheckCircle2, ShieldCheck, Truck, RefreshCw, Award } from 'lucide-react';
+import { Sparkles, Mail, Phone, MapPin, Send, CheckCircle2, ShieldCheck, Truck, RefreshCw, Award, Shield } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -271,6 +271,10 @@ export const Footer: React.FC = () => {
             </Link>
             <Link to="/policies/returns" className="hover:text-[#dfbe7e] transition-colors">
               Returns & Cancellations
+            </Link>
+            <Link to="/admin/login" className="hover:text-[#dfbe7e] transition-colors flex items-center gap-1 text-[#c5a059]">
+              <Shield className="w-3 h-3" />
+              <span>Admin Portal</span>
             </Link>
           </div>
         </div>

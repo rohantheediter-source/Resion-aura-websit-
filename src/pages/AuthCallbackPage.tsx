@@ -26,12 +26,16 @@ export const AuthCallbackPage: React.FC = () => {
         searchParams.get('error') ||
         hashParams.get('error');
 
+      const targetRedirect = sessionStorage.getItem('resin_aura_auth_redirect') || '/profile';
+      const isForAdmin = targetRedirect.startsWith('/admin');
+
       if (errDesc) {
         const decoded = decodeURIComponent(errDesc.replace(/\+/g, ' '));
         if (isMounted) {
           setErrorMessage(decoded);
           error(decoded);
-          setTimeout(() => navigate('/login', { replace: true }), 2500);
+          sessionStorage.removeItem('resin_aura_auth_redirect');
+          setTimeout(() => navigate(isForAdmin ? '/admin/login' : '/login', { replace: true }), 2500);
         }
         return;
       }
@@ -47,9 +51,12 @@ export const AuthCallbackPage: React.FC = () => {
         if (session?.user) {
           await refreshProfile();
           if (isMounted) {
-            success('Signed in with Google successfully! Welcome to Resin Aura.');
-            const targetRedirect = sessionStorage.getItem('resin_aura_auth_redirect') || '/profile';
             sessionStorage.removeItem('resin_aura_auth_redirect');
+            if (isForAdmin) {
+              success('Authenticated with Google. Verifying administrative clearance...');
+            } else {
+              success('Signed in with Google successfully! Welcome to Resin Aura.');
+            }
             navigate(targetRedirect, { replace: true });
           }
           return;
@@ -58,7 +65,6 @@ export const AuthCallbackPage: React.FC = () => {
         // Wait up to 3 seconds for onAuthStateChange to capture the session
         const timeout = setTimeout(() => {
           if (isMounted && !user) {
-            const targetRedirect = sessionStorage.getItem('resin_aura_auth_redirect') || '/profile';
             sessionStorage.removeItem('resin_aura_auth_redirect');
             navigate(targetRedirect, { replace: true });
           }
@@ -71,7 +77,8 @@ export const AuthCallbackPage: React.FC = () => {
           const msg = err.message || 'Authentication failed. Please try signing in again.';
           setErrorMessage(msg);
           error(msg);
-          setTimeout(() => navigate('/login', { replace: true }), 2500);
+          sessionStorage.removeItem('resin_aura_auth_redirect');
+          setTimeout(() => navigate(isForAdmin ? '/admin/login' : '/login', { replace: true }), 2500);
         }
       }
     }

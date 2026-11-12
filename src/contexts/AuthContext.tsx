@@ -17,13 +17,10 @@ interface AuthContextValue {
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
-  setAdminRoleManually: () => Promise<boolean>;
-  loginAsDevAdmin: () => void;
+  verifyAdminStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-const LOCAL_ADMIN_KEY = 'resin_aura_local_admin_session';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -32,61 +29,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole>('customer');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const setDevAdminState = useCallback(() => {
-    const mockAdminUser: any = {
-      id: 'admin-master-001',
-      email: 'admin@resinaura.com',
-      user_metadata: { full_name: 'Studio Administrator' },
-      app_metadata: { role: 'admin' },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    };
-    setUser(mockAdminUser);
-    setRole('admin');
-    setProfile({
-      id: 'admin-master-001',
-      email: 'admin@resinaura.com',
-      full_name: 'Studio Administrator',
-      role: 'admin',
-    });
-    localStorage.setItem(LOCAL_ADMIN_KEY, 'true');
-  }, []);
-
+  // Server-authoritative role verification: queries database RLS & is_admin RPC
   const fetchProfileAndRole = useCallback(async (userId: string, email: string, userObj?: User | null) => {
     try {
-      // 1. Fetch user role
-      const { data: roleData, error: roleError } = await supabase
+      // 1. Query the database server for admin authorization clearance
+      let verifiedIsAdmin = false;
+      try {
+        // Try the clearance sync RPC first
+        const { data: clearanceData, error: clearanceError } = await supabase.rpc('verify_admin_clearance');
+        if (!clearanceError && clearanceData) {
+          verifiedIsAdmin = clearanceData.is_admin === true;
+        } else {
+          // Fallback to core is_admin RPC
+          const { data: isAdminData, error: isAdminError } = await supabase.rpc('is_admin');
+          if (!isAdminError && isAdminData === true) {
+            verifiedIsAdmin = true;
+          }
+        }
+      } catch {
+        verifiedIsAdmin = false;
+      }
+
+      // 2. Fetch role from user_roles table
+      const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .maybeSingle();
 
-      const adminEmails = ['admin@resinaura.com', 'admin@gmail.com', 'rohan@resinaura.com'];
       let userRole: UserRole = 'customer';
-      if (!roleError && roleData?.role) {
-        userRole = roleData.role as UserRole;
-      } else if (adminEmails.includes(email.toLowerCase())) {
+      if (verifiedIsAdmin || roleData?.role === 'admin') {
         userRole = 'admin';
+      } else if (roleData?.role === 'editor') {
+        userRole = 'editor';
       } else {
         userRole = 'customer';
       }
       setRole(userRole);
 
-      // Ensure user_roles has a record (safely avoiding duplication)
-      if (!roleData?.role) {
-        try {
-          await supabase
-            .from('user_roles')
-            .upsert({ user_id: userId, role: userRole }, { onConflict: 'user_id' });
-        } catch (_) {}
-      }
-
-      // 2. Extract Google OAuth metadata if available
+      // 3. Extract Google OAuth metadata if available
       const userMeta = (userObj?.user_metadata || {}) as Record<string, any>;
       const googleName = userMeta.full_name || userMeta.name || '';
       const googleAvatar = userMeta.avatar_url || userMeta.picture || '';
 
-      // 3. Fetch profile
+      // 4. Fetch profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -146,41 +132,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.warn('Error fetching user profile/role:', err);
-      const adminEmails = ['admin@resinaura.com', 'admin@gmail.com', 'rohan@resinaura.com'];
-      const determinedRole = adminEmails.includes(email.toLowerCase()) ? 'admin' : 'customer';
+      // Safe default: customer role, never elevated to admin on error
+      setRole('customer');
       setProfile({
         id: userId,
         email,
         full_name: email.split('@')[0],
-        role: determinedRole,
+        role: 'customer',
       });
-      setRole(determinedRole);
     }
   }, []);
+
+  // Live real-time check of admin status against the backend security RPC
+  const verifyAdminStatus = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      const { data: clearanceData, error: clearanceErr } = await supabase.rpc('verify_admin_clearance');
+      if (!clearanceErr && clearanceData?.is_admin === true) {
+        setRole('admin');
+        return true;
+      }
+      const { data: isAdminData, error: isAdminErr } = await supabase.rpc('is_admin');
+      if (!isAdminErr && isAdminData === true) {
+        setRole('admin');
+        return true;
+      }
+
+      // Check user_roles table for existing admin email/password accounts
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (roleData?.role === 'admin') {
+        setRole('admin');
+        return true;
+      }
+
+      setRole('customer');
+      return false;
+    } catch {
+      return false;
+    }
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
 
+    // Purge any legacy insecure development keys from browser storage
+    try {
+      localStorage.removeItem('resin_aura_local_admin_session');
+      localStorage.removeItem('resin_aura_admin_session');
+    } catch (_) {}
+
     async function initAuth() {
       try {
-        // Check if dev admin was active in localStorage
-        const wasDevAdmin = localStorage.getItem(LOCAL_ADMIN_KEY) === 'true';
-
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         if (mounted) {
           if (initialSession?.user) {
             setSession(initialSession);
             setUser(initialSession.user);
             await fetchProfileAndRole(initialSession.user.id, initialSession.user.email ?? '', initialSession.user);
-          } else if (wasDevAdmin) {
-            setDevAdminState();
           }
         }
       } catch (err) {
         console.error('Error during auth initialization:', err);
-        if (localStorage.getItem(LOCAL_ADMIN_KEY) === 'true') {
-          setDevAdminState();
-        }
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -194,8 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(newSession);
         setUser(newSession.user);
         await fetchProfileAndRole(newSession.user.id, newSession.user.email ?? '', newSession.user);
-      } else if (localStorage.getItem(LOCAL_ADMIN_KEY) === 'true') {
-        setDevAdminState();
       } else {
         setSession(null);
         setUser(null);
@@ -209,17 +224,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfileAndRole, setDevAdminState]);
+  }, [fetchProfileAndRole]);
 
+  // Customer email & password sign-in (strictly uses Supabase Auth, zero bypass)
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        // If it's the admin email, allow immediate admin access without friction
-        if (email.toLowerCase() === 'admin@resinaura.com' || email.toLowerCase().includes('admin')) {
-          setDevAdminState();
-          return { error: null };
-        }
         return { error };
       }
       if (data.user) {
@@ -227,14 +238,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return { error: null };
     } catch (err: any) {
-      if (email.toLowerCase() === 'admin@resinaura.com' || email.toLowerCase().includes('admin')) {
-        setDevAdminState();
-        return { error: null };
-      }
       return { error: err };
     }
   };
 
+  // Customer registration
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -260,10 +268,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    localStorage.removeItem(LOCAL_ADMIN_KEY);
+    try {
+      sessionStorage.removeItem('resin_aura_auth_redirect');
+      localStorage.removeItem('resin_aura_local_admin_session');
+    } catch (_) {}
+
     try {
       await supabase.auth.signOut();
     } catch (_) {}
+
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -306,32 +319,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const setAdminRoleManually = async (): Promise<boolean> => {
-    if (!user) return false;
-    try {
-      await supabase
-        .from('user_roles')
-        .upsert({
-          user_id: user.id,
-          role: 'admin',
-        });
-      setRole('admin');
-      return true;
-    } catch (_) {
-      setRole('admin');
-      return true;
-    }
-  };
-
+  // Google OAuth sign-in via Supabase
   const signInWithGoogle = async (customRedirectTo?: string): Promise<{ error: Error | null }> => {
     try {
       const origin = window.location.origin;
-      // Use auth callback route for seamless session detection and profile sync
-      let targetRedirect = `${origin}/auth/callback`;
+      const targetRedirect = `${origin}/auth/callback`;
+
       if (customRedirectTo) {
-        targetRedirect = customRedirectTo.startsWith('http')
-          ? customRedirectTo
-          : `${origin}${customRedirectTo.startsWith('/') ? '' : '/'}${customRedirectTo}`;
+        sessionStorage.setItem('resin_aura_auth_redirect', customRedirectTo);
       }
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -354,10 +349,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginAsDevAdmin = () => {
-    setDevAdminState();
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -374,8 +365,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPassword,
         updateProfile,
         refreshProfile,
-        setAdminRoleManually,
-        loginAsDevAdmin,
+        verifyAdminStatus,
       }}
     >
       {children}

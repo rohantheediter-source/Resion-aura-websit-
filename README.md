@@ -191,17 +191,17 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Jgzo4SOtbVWPA6eVXoTSng_f9O5QE6P
 4. Next, open `supabase/migrations/seed.sql`, paste its content, and click **Run**. This populates all 5 categories and 56 initial curated products based on your uploaded assets.
 5. In **Storage**, create a new public bucket named `product-images` with public read access.
 
-### To grant yourself Administrator Access:
-1. Go to `http://localhost:5173/admin/login`.
-2. Click **"First time setup? Register & initialize primary administrator"**.
-3. Sign up with your administrator email (e.g. `admin@resinaura.com`) and choose a secure password.
-4. The system will automatically register and authorize your account as `admin`!
-5. Alternatively, run this SQL in Supabase SQL Editor:
+### To configure Administrator Access (Google OAuth):
+1. In the Supabase Dashboard, open **Authentication** > **Providers** and ensure **Google** is enabled.
+2. In the **SQL Editor**, run the migration in `supabase/migrations/004_admin_google_oauth_auth.sql`.
+3. Whitelist your administrator Google account email:
    ```sql
-   UPDATE public.user_roles 
-   SET role = 'admin' 
-   WHERE user_id = (SELECT id FROM auth.users WHERE email = 'YOUR_EMAIL@example.com');
+   INSERT INTO public.authorized_admin_emails (email, role, notes)
+   VALUES ('YOUR_GOOGLE_ACCOUNT@gmail.com', 'admin', 'Store Administrator')
+   ON CONFLICT (email) DO NOTHING;
    ```
+4. Navigate to `http://localhost:5173/admin/login` and click **"Continue with Google"**.
+5. Once authenticated with your whitelisted Google account, the server validates your clearance and grants access to the Administrative Suite. Any non-whitelisted account will receive an access-denied screen.
 
 ---
 

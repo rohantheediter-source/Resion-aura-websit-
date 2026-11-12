@@ -11,6 +11,7 @@ import {
   Sparkles,
   LogOut,
   Package,
+  Shield,
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useWishlist } from '../../contexts/WishlistContext';
@@ -21,7 +22,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { totalItems } = useCart();
   const { totalWishlist } = useWishlist();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -193,6 +194,16 @@ export const Navbar: React.FC = () => {
                           {profile?.full_name || user.email}
                         </p>
                       </div>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#dfbe7e] bg-[#07241e] hover:bg-[#0b3b33] rounded-lg mx-2 my-1 transition-colors"
+                        >
+                          <Shield className="w-4 h-4 text-[#c5a059]" />
+                          <span>Admin Console</span>
+                        </Link>
+                      )}
                       <Link
                         to="/profile"
                         onClick={() => setUserDropdownOpen(false)}
@@ -254,6 +265,14 @@ export const Navbar: React.FC = () => {
                       >
                         <Package className="w-3.5 h-3.5 text-neutral-400" />
                         Track Your Order
+                      </Link>
+                      <Link
+                        to="/admin/login"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs text-[#856338] hover:text-[#0b3b33] hover:bg-neutral-50 font-medium"
+                      >
+                        <Shield className="w-3.5 h-3.5 text-[#c5a059]" />
+                        Admin Login
                       </Link>
                     </>
                   )}
@@ -342,6 +361,14 @@ export const Navbar: React.FC = () => {
                   Sign In / Register
                 </Link>
               )}
+              <Link
+                to="/admin/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-semibold text-[#856338] hover:text-[#0b3b33] py-2 border-t border-neutral-100 mt-1"
+              >
+                <Shield className="w-3.5 h-3.5 text-[#c5a059]" />
+                <span>Admin Login</span>
+              </Link>
             </div>
           </nav>
         </div>
