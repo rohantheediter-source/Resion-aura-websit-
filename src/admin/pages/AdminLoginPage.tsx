@@ -164,7 +164,7 @@ export const AdminLoginPage: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="off"
-                  placeholder="admin@yourdomain.com"
+                  placeholder="Enter administrator email"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#061713] border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#c5a059] transition-colors"
                 />
               </div>
@@ -182,7 +182,7 @@ export const AdminLoginPage: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  placeholder="••••••••••••"
+                  placeholder="Enter administrator password"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#061713] border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#c5a059] transition-colors"
                 />
               </div>

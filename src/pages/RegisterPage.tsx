@@ -148,7 +148,8 @@ export const RegisterPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="patron@example.com"
+                autoComplete="off"
+                placeholder="Enter your email"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
               />
             </div>
@@ -165,7 +166,8 @@ export const RegisterPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="••••••••"
+                autoComplete="new-password"
+                placeholder="Create a password"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
               />
             </div>
@@ -182,7 +184,8 @@ export const RegisterPage: React.FC = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                placeholder="••••••••"
+                autoComplete="new-password"
+                placeholder="Re-enter your password"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
               />
             </div>

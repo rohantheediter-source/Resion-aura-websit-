@@ -117,7 +117,7 @@ export const LoginPage: React.FC = () => {
         <AuthDivider label="OR CONTINUE WITH EMAIL" />
 
         {/* 3. Existing Email & Password Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
               Email Address
@@ -129,7 +129,8 @@ export const LoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="patron@example.com"
+                autoComplete="off"
+                placeholder="Enter your email"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
               />
             </div>
@@ -154,7 +155,8 @@ export const LoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="••••••••"
+                autoComplete="current-password"
+                placeholder="Enter your password"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-neutral-300 text-xs text-neutral-900 focus:outline-none focus:border-[#0b3b33]"
               />
             </div>
